@@ -3,6 +3,18 @@ import './App.css';
 import { UsersList } from './components/UsersList';
 import { SortBy, type User } from './types.d';
 
+const fetchUsers = async (page: number) => {
+  return await fetch(
+    `https://randomuser.me/api?results=10&seed=ingcapadev&page=${page}`
+  )
+    .then(async (res) => {
+      // Manejo de errores en la peticion
+      if (!res.ok) throw new Error('Hubo un error al obtener los usuarios');
+      return await res.json();
+    })
+    .then((res) => res.results);
+};
+
 function App() {
   const [users, setUsers] = useState<User[]>([]);
   const [showColors, setShowColors] = useState(false);
@@ -45,17 +57,10 @@ function App() {
   useEffect(() => {
     setLoading(true);
     setError(false);
-    fetch(
-      `https://randomuser.me/api?results=10&seed=ingcapadev&page=${currentPage}`
-    )
-      .then(async (res) => {
-        // Manejo de errores en la peticion
-        if (!res.ok) throw new Error('Hubo un error al obtener los usuarios');
-        return await res.json();
-      })
-      .then((res) => {
+    fetchUsers(currentPage)
+      .then((users) => {
         setUsers((prev) => {
-          const newUsers = prev.concat(res.results);
+          const newUsers = prev.concat(users);
           originalUsers.current = newUsers;
           return newUsers;
         });
