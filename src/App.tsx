@@ -12,6 +12,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
+  const [currentPage, setCurrentPage] = useState(1);
+
   const originalUsers = useRef<User[]>([]);
   // useRef -> para guardar un valor
   // que queremos que se comparta entre renderizados
@@ -43,14 +45,20 @@ function App() {
   useEffect(() => {
     setLoading(true);
     setError(false);
-    fetch('https://randomuser.me/api?results=10')
+    fetch(
+      `https://randomuser.me/api?results=10&seed=ingcapadev&page=${currentPage}`
+    )
       .then(async (res) => {
+        // Manejo de errores en la peticion
         if (!res.ok) throw new Error('Hubo un error al obtener los usuarios');
         return await res.json();
       })
       .then((res) => {
-        setUsers(res.results);
-        originalUsers.current = res.results;
+        setUsers((prev) => {
+          const newUsers = prev.concat(res.results);
+          originalUsers.current = newUsers;
+          return newUsers;
+        });
       })
       .catch((err) => {
         // catch -> para captar errores
@@ -60,7 +68,7 @@ function App() {
       .finally(() => {
         setLoading(false);
       });
-  }, []);
+  }, [currentPage]);
 
   const filteredUsers = useMemo(() => {
     console.log('calculate filteredUsers');
@@ -131,6 +139,14 @@ function App() {
         />
       </header>
       <main>
+        {users.length > 0 && (
+          <UsersList
+            changeSorting={handleChangeSort}
+            deleteUser={handleDelete}
+            showColors={showColors}
+            users={sortedUsers}
+          />
+        )}
         {loading && (
           <div>
             <strong>Cargando ...</strong>
@@ -138,13 +154,11 @@ function App() {
         )}
         {!loading && error && <div>Hubo un error</div>}
         {!loading && !error && users.length === 0 && <div>No hay usuarios</div>}
-        {!loading && !error && users.length > 0 && (
-          <UsersList
-            changeSorting={handleChangeSort}
-            deleteUser={handleDelete}
-            showColors={showColors}
-            users={sortedUsers}
-          />
+
+        {!loading && !error && (
+          <button onClick={() => setCurrentPage((prev) => prev + 1)}>
+            Cargar mas resultados
+          </button>
         )}
       </main>
     </div>
