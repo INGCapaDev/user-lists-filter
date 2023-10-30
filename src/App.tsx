@@ -44,12 +44,16 @@ function App() {
     setLoading(true);
     setError(false);
     fetch('https://randomuser.me/api?results=10')
-      .then(async (res) => await res.json())
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Hubo un error al obtener los usuarios');
+        return await res.json();
+      })
       .then((res) => {
         setUsers(res.results);
         originalUsers.current = res.results;
       })
       .catch((err) => {
+        // catch -> para captar errores
         setError(true);
         console.error(err);
       })
