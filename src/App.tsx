@@ -1,32 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import './App.css';
 import { UsersList } from './components/UsersList';
 import { SortBy, type User } from './types.d';
-
-const fetchUsers = async (page: number) => {
-  return await fetch(
-    `https://randomuser.me/api?results=10&seed=ingcapadev&page=${page}`
-  )
-    .then(async (res) => {
-      // Manejo de errores en la peticion
-      if (!res.ok) throw new Error('Hubo un error al obtener los usuarios');
-      return await res.json();
-    })
-    .then((res) => res.results);
-};
+import { useUsers } from './hooks/useUsers';
+import Results from './components/Results';
 
 function App() {
-  const [users, setUsers] = useState<User[]>([]);
+  const { fetchNextPage, hasNextPage, isError, isLoading, refetch, users } =
+    useUsers();
   const [showColors, setShowColors] = useState(false);
   const [sorting, setSorting] = useState<SortBy>(SortBy.NONE);
   const [filterCountry, setFilterCountry] = useState<string | null>(null);
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const originalUsers = useRef<User[]>([]);
+  //const originalUsers = useRef<User[]>([]);
   // useRef -> para guardar un valor
   // que queremos que se comparta entre renderizados
   // pero que al cambiar, no vuelva a renderizar el componente
@@ -42,38 +28,17 @@ function App() {
   };
 
   const handleReset = () => {
-    setUsers(originalUsers.current);
+    void refetch();
   };
 
   const handleDelete = (email: string) => {
-    const filteredUsers = users.filter((user) => user.email !== email);
-    setUsers(filteredUsers);
+    // const filteredUsers = users.filter((user) => user.email !== email);
+    //setUsers(filteredUsers);
   };
 
   const handleChangeSort = (sort: SortBy) => {
     setSorting(sort);
   };
-
-  useEffect(() => {
-    setLoading(true);
-    setError(false);
-    fetchUsers(currentPage)
-      .then((users) => {
-        setUsers((prev) => {
-          const newUsers = prev.concat(users);
-          originalUsers.current = newUsers;
-          return newUsers;
-        });
-      })
-      .catch((err) => {
-        // catch -> para captar errores
-        setError(true);
-        console.error(err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [currentPage]);
 
   const filteredUsers = useMemo(() => {
     console.log('calculate filteredUsers');
@@ -91,14 +56,16 @@ function App() {
 
     if (sorting === SortBy.NONE) return filteredUsers;
 
-    const compareProperties: Record<string, (user: User) => any> = {
+    const compareProperties: Record<string, (user: User) => unknown> = {
       [SortBy.COUNTRY]: (user) => user.location.country,
       [SortBy.NAME]: (user) => user.name.first,
       [SortBy.LAST]: (user) => user.name.last,
     };
 
     return filteredUsers.toSorted((a, b) => {
-      const extractProperty = compareProperties[sorting];
+      const extractProperty = compareProperties[sorting] as (
+        user: User
+      ) => string;
       return extractProperty(a).localeCompare(extractProperty(b));
     });
   }, [filteredUsers, sorting]);
@@ -125,6 +92,7 @@ function App() {
   return (
     <div className='App'>
       <h1>Prueba técnica</h1>
+      <Results />
       <header>
         <button onClick={toggleColors}>Colorear files</button>
 
@@ -152,18 +120,18 @@ function App() {
             users={sortedUsers}
           />
         )}
-        {loading && (
+        {isLoading && (
           <div>
             <strong>Cargando ...</strong>
           </div>
         )}
-        {!loading && error && <div>Hubo un error</div>}
-        {!loading && !error && users.length === 0 && <div>No hay usuarios</div>}
+        {!isLoading && isError && <div>Hubo un error</div>}
+        {!isLoading && !isError && users.length === 0 && (
+          <div>No hay usuarios</div>
+        )}
 
-        {!loading && !error && (
-          <button onClick={() => setCurrentPage((prev) => prev + 1)}>
-            Cargar mas resultados
-          </button>
+        {!isLoading && !isError && hasNextPage && (
+          <button onClick={() => fetchNextPage()}>Cargar mas resultados</button>
         )}
       </main>
     </div>
